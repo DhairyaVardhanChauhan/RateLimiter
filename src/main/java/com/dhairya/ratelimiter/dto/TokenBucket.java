@@ -8,7 +8,7 @@ public class TokenBucket {
     private Long refillDuration;
     private AtomicLong tokensAvailable;
     private volatile long lastRefillTime;
-
+    public TokenBucket() {}
     public TokenBucket(Long threshold, Long refillDuration) {
         this.threshold = threshold;
         this.refillDuration = refillDuration;
@@ -46,5 +46,15 @@ public class TokenBucket {
 
     public void setLastRefillTime(long lastRefillTime) {
         this.lastRefillTime = lastRefillTime;
+    }
+
+    @Override
+    public String toString() {
+        return "TokenBucket{" +
+                "threshold=" + threshold +
+                ", refillDuration=" + refillDuration +
+                ", tokensAvailable=" + tokensAvailable +
+                ", lastRefillTime=" + lastRefillTime +
+                '}';
     }
 }

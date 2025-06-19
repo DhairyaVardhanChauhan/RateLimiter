@@ -1,51 +1,33 @@
 package com.dhairya.ratelimiter.service.impl;
 
+import com.dhairya.ratelimiter.dto.RedisData;
 import com.dhairya.ratelimiter.service.RateLimiter;
+import com.dhairya.ratelimiter.service.RedisService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 public class TokenBucketService implements RateLimiter {
 
-    public Long getThreshold() {
-        return threshold;
-    }
-
-    public void setThreshold(Long threshold) {
-        this.threshold = threshold;
-    }
-
-    public Long getTokenRefillDuration() {
-        return tokenRefillDuration;
-    }
-
-    public AtomicLong getTokensAvailable() {
-        return tokensAvailable;
-    }
-
-    public long getTokenRefillTimeStamp() {
-        return tokenRefillTimeStamp;
-    }
-
-    public void setTokenRefillTimeStamp(long tokenRefillTimeStamp) {
-        this.tokenRefillTimeStamp = tokenRefillTimeStamp;
-    }
+    @Autowired
+    private RedisService redisService;
 
     private Long threshold = 5L;
-    private final Long  tokenRefillDuration = 3000L;
-    private final AtomicLong tokensAvailable = new AtomicLong(0);
-    private volatile long tokenRefillTimeStamp = System.currentTimeMillis();
-
-    public TokenBucketService() {
-        this.threshold = threshold;
-        this.tokensAvailable.set(threshold);
-    }
-
+    private final Long  tokenRefillDuration = 20000L;
 
     @Override
-    synchronized public boolean tryAcquire() {
+    public boolean tryAcquire(Long userId) {
+        String key = "RATE_LIMITER_"+userId;
+        RedisData redisData = redisService.getKeyAs(key, RedisData.class);
+        if(redisData == null) {
+            redisData = new RedisData(5,System.currentTimeMillis());
+        }
+        Long tokenRefillTimeStamp = redisData.getTokenRefillTimeStamp();
+        AtomicLong tokensAvailable = redisData.getTokensAvailable();
         // step1 add tokens to the bucket.
         long tokensToAdd = ((System.currentTimeMillis() - tokenRefillTimeStamp)/tokenRefillDuration)*threshold;
         System.out.println(tokensToAdd);
@@ -55,6 +37,7 @@ public class TokenBucketService implements RateLimiter {
         }
         if(tokensAvailable.get() > 0){
             tokensAvailable.decrementAndGet();
+            redisService.setKey(key,new RedisData(tokensAvailable,tokenRefillTimeStamp),Duration.ofSeconds(60*5));
             return true;
         }
         return false;
